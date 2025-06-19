@@ -13,7 +13,7 @@ import {pathToFileURL} from 'url';
 
 import userResolver from '../__mocks__/userResolver';
 import userResolverAsync from '../__mocks__/userResolverAsync';
-import defaultResolver from '../defaultResolver';
+import defaultResolver, {defaultAsyncResolver} from '../defaultResolver';
 import nodeModulesPaths from '../nodeModulesPaths';
 import Resolver from '../resolver';
 import type {ResolverConfig} from '../types';
@@ -75,15 +75,33 @@ describe('isCoreModule', () => {
     expect(isCore).toBe(true);
   });
 
-  it('returns true if using `node:` URLs and `moduleName` is not a core module.', () => {
+  it('returns false if using `node:` URLs and `moduleName` is not a core module.', () => {
     const moduleMap = ModuleMap.create('/');
     const resolver = new Resolver(moduleMap, {} as ResolverConfig);
     const isCore = resolver.isCoreModule('node:not-a-core-module');
-    expect(isCore).toBe(true);
+    expect(isCore).toBe(false);
   });
 });
 
 describe('findNodeModule', () => {
+  it('should resolve builtin modules as-is', () => {
+    expect(
+      Resolver.findNodeModule('url', {
+        basedir: __dirname,
+      }),
+    ).toBe('url');
+    expect(
+      Resolver.findNodeModule('node:url', {
+        basedir: __dirname,
+      }),
+    ).toBe('node:url');
+    expect(
+      Resolver.findNodeModule('url/', {
+        basedir: __dirname,
+      }),
+    ).toBe(path.resolve('node_modules/url/url.js'));
+  });
+
   it('is possible to override the default resolver', () => {
     const cwd = process.cwd();
     const resolvedCwd = fs.realpathSync(cwd) || cwd;
@@ -109,6 +127,7 @@ describe('findNodeModule', () => {
     expect(mockUserResolver.mock.calls[0][1]).toStrictEqual({
       basedir: '/',
       conditions: ['conditions, woooo'],
+      defaultAsyncResolver,
       defaultResolver,
       extensions: ['js'],
       moduleDirectory: ['node_modules'],
@@ -404,6 +423,7 @@ describe('findNodeModuleAsync', () => {
     expect(mockUserResolverAsync.async.mock.calls[0][1]).toStrictEqual({
       basedir: '/',
       conditions: ['conditions, woooo'],
+      defaultAsyncResolver,
       defaultResolver,
       extensions: ['js'],
       moduleDirectory: ['node_modules'],
